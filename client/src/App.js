@@ -1,5 +1,31 @@
+<<<<<<< HEAD
 import logo from './logo.svg';
 import './App.css';
+=======
+import React, { useState } from 'react';
+import axios from 'axios';
+
+import {
+  Container,
+  TextField,
+  Button,
+  Typography,
+  Paper,
+  Box,
+  CircularProgress,
+  Alert,
+} from '@mui/material';
+
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  CartesianGrid
+} from 'recharts';
+>>>>>>> ce1c27f (Add full backend (server) with app.py and requirements.txt)
 
 function App() {
   return (
