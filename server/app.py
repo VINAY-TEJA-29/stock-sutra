@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request, send_from_directory
+import os
 from flask_cors import CORS
 import yfinance as yf
-import os
 from datetime import datetime
 
 app = Flask(__name__, static_folder="../client/build", static_url_path="/")
@@ -10,6 +10,7 @@ CORS(app)
 @app.route("/")
 def serve():
     return send_from_directory(app.static_folder, "index.html")
+
 
 @app.route("/stock/<symbol>")
 def get_stock_data(symbol):
