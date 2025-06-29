@@ -2,7 +2,6 @@ services:
   - type: web
     name: stock-sutra
     env: python
-    plan: free
     rootDir: server
     buildCommand: "pip install -r requirements.txt"
     startCommand: "python app.py"
