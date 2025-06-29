@@ -7,20 +7,23 @@ import os
 app = Flask(__name__, static_folder="../client/build", static_url_path="/")
 CORS(app)
 
+# Serve React frontend
 @app.route("/")
 def serve():
     return send_from_directory(app.static_folder, "index.html")
 
+# Stock API endpoint
 @app.route("/stock/<symbol>")
 def get_stock_data(symbol):
     try:
         stock = yf.Ticker(symbol)
         info = stock.info
 
-        # Safe access and validation
+        # Check if valid data received
         if not info or "regularMarketPrice" not in info:
-            raise ValueError("Stock data not available or incomplete.")
+            return jsonify({"error": "Invalid or no data found for the stock symbol."}), 500
 
+        # Prepare response
         data = {
             "symbol": symbol,
             "price": info.get("regularMarketPrice"),
@@ -37,8 +40,9 @@ def get_stock_data(symbol):
         return jsonify(data)
 
     except Exception as e:
-        print(f"[ERROR] Failed to fetch stock data for {symbol}: {e}")
-        return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
+        print(f"[ERROR] Failed to fetch stock data for {symbol}: {str(e)}")
+        return jsonify({"error": str(e)}), 500
 
+# Run server
 if __name__ == "__main__":
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5000)
