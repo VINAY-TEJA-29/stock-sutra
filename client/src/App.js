@@ -1,118 +1,106 @@
 import React, { useState } from 'react';
 import axios from 'axios';
+import {
+  Container, TextField, Button, Typography,
+  Paper, Box, CircularProgress, Alert
+} from '@mui/material';
+import {
+  LineChart, Line, XAxis, YAxis, Tooltip,
+  ResponsiveContainer, CartesianGrid
+} from 'recharts';
 import './App.css';
 
-import {
-  Container,
-  TextField,
-  Button,
-  Typography,
-  Paper,
-  Box,
-  CircularProgress,
-  Alert,
-} from '@mui/material';
-
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-  CartesianGrid
-} from 'recharts';
-
 function App() {
-  const [symbol, setSymbol] = useState('');
-  const [data, setData] = useState(null);
+  const [symbol, setSymbol] = useState('TCS.NS');
+  const [stockData, setStockData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(null);
 
-  const fetchStock = async () => {
-    setLoading(true);
-    setError('');
+  const getStockData = async () => {
+    if (!symbol.trim()) {
+      setError('Please enter a stock symbol');
+      return;
+    }
+
     try {
-      const response = await axios.get(
-        `https://stock-sutra.onrender.com/stock/${symbol}`
-      );
-      setData(response.data);
+      setLoading(true);
+      const response = await axios.get(`https://stock-sutra.onrender.com/stock/${symbol}`);
+      setStockData(response.data);
+      setError(null);
     } catch (err) {
       setError('Network error');
-      setData(null);
+      setStockData(null);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <Container maxWidth="sm" style={{ textAlign: 'center', paddingTop: 40 }}>
-      <Typography variant="h4" gutterBottom>
-        🚀 <strong>StockSutra</strong>
-      </Typography>
-      <Typography variant="subtitle1" gutterBottom>
-        Your Smart Market Tracker
-      </Typography>
+    <Container maxWidth="sm">
+      <Box textAlign="center" mt={5} mb={3}>
+        <Typography variant="h3" gutterBottom>
+          🚀 StockSutra
+        </Typography>
+        <Typography variant="subtitle1">
+          Your Smart Market Tracker
+        </Typography>
+      </Box>
 
-      <Box sx={{ marginBottom: 2 }}>
-        {['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS'].map((stock) => (
-          <Button
-            key={stock}
-            variant="outlined"
-            onClick={() => {
-              setSymbol(stock);
-              fetchStock();
-            }}
-            sx={{ m: 0.5 }}
-          >
-            {stock}
+      <Box display="flex" justifyContent="center" gap={2} mb={2}>
+        {['RELIANCE.NS', 'TCS.NS', 'INFY.NS', 'HDFCBANK.NS'].map((s) => (
+          <Button key={s} variant="outlined" onClick={() => setSymbol(s)}>
+            {s}
           </Button>
         ))}
       </Box>
 
-      <TextField
-        label="Stock Symbol"
-        variant="outlined"
-        fullWidth
-        value={symbol}
-        onChange={(e) => setSymbol(e.target.value)}
-        sx={{ marginBottom: 2 }}
-      />
-      <Button
-        variant="contained"
-        onClick={fetchStock}
-        fullWidth
-        disabled={loading}
-      >
-        GET PRICE
-      </Button>
+      <Box display="flex" gap={2} mb={2}>
+        <TextField
+          fullWidth
+          label="Stock Symbol"
+          value={symbol}
+          onChange={(e) => setSymbol(e.target.value)}
+        />
+        <Button variant="contained" onClick={getStockData}>
+          GET PRICE
+        </Button>
+      </Box>
 
-      {loading && <CircularProgress sx={{ mt: 2 }} />}
-      {error && <Alert severity="error" sx={{ mt: 2 }}>{error}</Alert>}
+      {loading && (
+        <Box textAlign="center" mt={3}>
+          <CircularProgress />
+        </Box>
+      )}
 
-      {data && !error && (
-        <Paper elevation={3} sx={{ padding: 3, marginTop: 3, textAlign: 'left' }}>
-          <Typography variant="h6" gutterBottom>
-            Stock Details for {data.symbol}
+      {error && (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          {error}
+        </Alert>
+      )}
+
+      {stockData && !error && (
+        <Paper elevation={3} sx={{ p: 3, mt: 3 }}>
+          <Typography variant="h5" gutterBottom>
+            {stockData.symbol} - ₹{stockData.price}
           </Typography>
-          <Typography>Price: ₹{data.price}</Typography>
-          <Typography>Open: ₹{data.open}</Typography>
-          <Typography>High: ₹{data.high}</Typography>
-          <Typography>Low: ₹{data.low}</Typography>
-          <Typography>Previous Close: ₹{data.previous_close}</Typography>
-          <Typography>Change: {data.change} ({data.change_percent})</Typography>
-          <Typography>Volume: {data.volume}</Typography>
-          <Typography>Latest Trading Day: {data.latest_trading_day}</Typography>
+          <Typography>
+            Open: ₹{stockData.open} | High: ₹{stockData.high} | Low: ₹{stockData.low}
+          </Typography>
+          <Typography>
+            Prev Close: ₹{stockData.previous_close} | Change: ₹{stockData.change} ({stockData.change_percent})
+          </Typography>
+          <Typography>
+            Volume: {stockData.volume} | Time: {stockData.latest_trading_day}
+          </Typography>
 
-          {/* Optional: Add chart if you return `history` array in backend */}
-          {data.history && data.history.length > 0 && (
-            <Box sx={{ mt: 3 }}>
-              <Typography variant="subtitle1">Price Trend</Typography>
+          {stockData.history && stockData.history.length > 0 && (
+            <Box mt={3}>
+              <Typography variant="h6" gutterBottom>Price Chart</Typography>
               <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={data.history}>
-                  <CartesianGrid stroke="#ccc" />
+                <LineChart data={stockData.history}>
+                  <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />
-                  <YAxis />
+                  <YAxis domain={['auto', 'auto']} />
                   <Tooltip />
                   <Line type="monotone" dataKey="price" stroke="#1976d2" />
                 </LineChart>
