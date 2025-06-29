@@ -1,26 +1,25 @@
 from flask import Flask, jsonify, request, send_from_directory
 from flask_cors import CORS
 import yfinance as yf
-from datetime import datetime, timedelta
+from datetime import datetime
 import os
 
 app = Flask(__name__, static_folder="../client/build", static_url_path="/")
 CORS(app)
 
-# Function to get current IST time
-def get_ist_time():
-    ist_time = datetime.utcnow() + timedelta(hours=5, minutes=30)
-    return ist_time.strftime("%d/%m/%Y, %I:%M:%S %p")
+@app.route("/")
+def serve():
+    return send_from_directory(app.static_folder, "index.html")
 
-# Serve the React frontend
 @app.route("/stock/<symbol>")
 def get_stock_data(symbol):
     try:
         stock = yf.Ticker(symbol)
         info = stock.info
 
+        # Safe access and validation
         if not info or "regularMarketPrice" not in info:
-            raise ValueError("No price info returned")
+            raise ValueError("Stock data not available or incomplete.")
 
         data = {
             "symbol": symbol,
@@ -34,11 +33,12 @@ def get_stock_data(symbol):
             "volume": info.get("volume"),
             "latest_trading_day": datetime.now().strftime("%d/%m/%Y, %I:%M:%S %p")
         }
+
         return jsonify(data)
+
     except Exception as e:
-        print(f"Error fetching stock data for {symbol}: {e}")
-        return jsonify({"error": str(e)}), 500
+        print(f"[ERROR] Failed to fetch stock data for {symbol}: {e}")
+        return jsonify({"error": f"Internal Server Error: {str(e)}"}), 500
 
-
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+if __name__ == "__main__":
+    app.run(debug=True, host="0.0.0.0", port=5000)
