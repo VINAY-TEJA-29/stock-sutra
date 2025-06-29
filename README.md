@@ -52,9 +52,13 @@ Stock-Sutra/
 👤 Author
 
 Polampalli Vinay Teja
+
 🎓 B.Tech CSE (AI & ML) – MREC
+
 📧 vinayteja292005@gmail.com
+
 🔗 GitHub :https://github.com/VINAY-TEJA-29
+
 🔗 LinkedIn :https://www.linkedin.com/in/vinay-teja-polampalli-888036358
 
 
