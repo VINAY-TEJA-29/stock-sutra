@@ -1,4 +1,5 @@
-from flask import Flask, jsonify, request, send_from_directory
+import os
+from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 import yfinance as yf
 import time
@@ -6,14 +7,17 @@ import time
 app = Flask(__name__, static_folder="../client/build", static_url_path="/")
 CORS(app)
 
-# Simple cache: symbol -> (timestamp, data)
+# In-memory cache to reduce rate limits
 cache = {}
+
+@app.route("/")
+def serve():
+    return send_from_directory(app.static_folder, "index.html")
 
 @app.route("/stock/<symbol>")
 def get_stock_data(symbol):
     try:
         current_time = time.time()
-        # If cached within last 30 seconds
         if symbol in cache and current_time - cache[symbol][0] < 30:
             return jsonify(cache[symbol][1])
 
@@ -40,6 +44,9 @@ def get_stock_data(symbol):
         return jsonify(data)
 
     except Exception as e:
-        if "Too Many Requests" in str(e):
-            return jsonify({"error": "Too Many Requests. Rate limited. Try after a while."}), 429
         return jsonify({"error": str(e)}), 500
+
+# ✅ Fix: Bind to 0.0.0.0 and use PORT from environment
+if __name__ == '__main__':
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=True, host='0.0.0.0', port=port)
