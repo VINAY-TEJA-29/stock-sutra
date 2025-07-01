@@ -17,34 +17,25 @@ def serve():
 @app.route("/stock/<symbol>")
 def get_stock_data(symbol):
     try:
-        current_time = time.time()
-        if symbol in cache and current_time - cache[symbol][0] < 30:
-            return jsonify(cache[symbol][1])
-
         stock = yf.Ticker(symbol)
-        info = stock.info
-
-        if info.get("regularMarketPrice") is None:
-            raise ValueError("Invalid or unavailable symbol")
-
+        fast_info = stock.fast_info  # Use fast_info for better reliability
         data = {
             "symbol": symbol,
-            "price": info.get("regularMarketPrice"),
-            "open": info.get("open"),
-            "high": info.get("dayHigh"),
-            "low": info.get("dayLow"),
-            "previous_close": info.get("previousClose"),
-            "change": round(info.get("regularMarketPrice", 0) - info.get("previousClose", 0), 2),
-            "change_percent": f"{round(((info.get('regularMarketPrice', 0) - info.get('previousClose', 0)) / info.get('previousClose', 1)) * 100, 2)}%",
-            "volume": info.get("volume"),
-            "latest_trading_day": time.strftime("%d/%m/%Y, %I:%M:%S %p")
+            "price": fast_info.get("lastPrice"),
+            "open": fast_info.get("open"),
+            "high": fast_info.get("dayHigh"),
+            "low": fast_info.get("dayLow"),
+            "previous_close": fast_info.get("previousClose"),
+            "change": round(fast_info.get("lastPrice", 0) - fast_info.get("previousClose", 0), 2),
+            "change_percent": f"{round(((fast_info.get('lastPrice', 0) - fast_info.get('previousClose', 0)) / fast_info.get('previousClose', 1)) * 100, 2)}%",
+            "volume": fast_info.get("volume"),
+            "latest_trading_day": datetime.now().strftime("%d/%m/%Y, %I:%M:%S %p")
         }
-
-        cache[symbol] = (current_time, data)
         return jsonify(data)
-
     except Exception as e:
+        print(f"[ERROR] {e}")
         return jsonify({"error": str(e)}), 500
+
 
 # ✅ Fix: Bind to 0.0.0.0 and use PORT from environment
 if __name__ == '__main__':
