@@ -2,7 +2,7 @@ import os
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 import yfinance as yf
-from datetime import datetime
+from datetime import datetime  # ✅ This line was missing
 
 app = Flask(__name__, static_folder="../client/build", static_url_path="/")
 CORS(app)
@@ -16,6 +16,7 @@ def get_stock_data(symbol):
     try:
         stock = yf.Ticker(symbol)
         fast_info = stock.fast_info
+
         data = {
             "symbol": symbol,
             "price": fast_info.get("lastPrice"),
@@ -28,10 +29,12 @@ def get_stock_data(symbol):
             "volume": fast_info.get("volume"),
             "latest_trading_day": datetime.now().strftime("%d/%m/%Y, %I:%M:%S %p")
         }
+
         return jsonify(data)
     except Exception as e:
+        print(f"[ERROR] {e}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
-    app.run(debug=True, host='0.0.0.0', port=port)
+    app.run(debug=True, host="0.0.0.0", port=port)
