@@ -52,6 +52,7 @@ Stock-Sutra/
 ## SCREENSHOT FOR SITE
    ![Screenshot 2025-06-29 111447](https://github.com/user-attachments/assets/a78198b4-f232-4d20-8a5a-224e8988fd29)
 
+---
 
 👤 Author
 
