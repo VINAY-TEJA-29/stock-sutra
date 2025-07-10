@@ -7,21 +7,22 @@ from datetime import datetime
 app = Flask(__name__, static_folder="../client/build", static_url_path="/")
 CORS(app)
 
+# Serve React frontend
 @app.route("/")
 def serve():
     return send_from_directory(app.static_folder, "index.html")
 
+# Stock API endpoint
 @app.route("/stock/<symbol>")
 def get_stock_data(symbol):
     try:
         stock = yf.Ticker(symbol)
-
         info = stock.fast_info or stock.info
 
-        if not info or not info.get("lastPrice", 0):
-            raise ValueError("Invalid or unavailable symbol.")
-
         price = info.get("lastPrice") or info.get("regularMarketPrice")
+
+        if not price:
+            raise ValueError("Invalid symbol or data unavailable")
 
         data = {
             "symbol": symbol,
@@ -37,7 +38,12 @@ def get_stock_data(symbol):
         }
 
         return jsonify(data)
-    
+
     except Exception as e:
-        print("[ERROR]", str(e))
-        return jsonify({"error": "Failed to fetch data. Please check the symbol or try again later."}), 500
+        print(f"[ERROR] {e}")
+        return jsonify({"error": str(e)}), 500
+
+# ✅ Correct PORT binding for Render
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    app.run(debug=False, host="0.0.0.0", port=port)
