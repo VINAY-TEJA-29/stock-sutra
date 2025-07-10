@@ -4,7 +4,7 @@ from flask_cors import CORS
 import yfinance as yf
 from datetime import datetime
 
-app = Flask(__name__, static_folder="client/build", static_url_path="/")
+app = Flask(__name__, static_folder="../client/build", static_url_path="/")
 CORS(app)
 
 @app.route("/")
