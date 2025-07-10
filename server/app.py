@@ -16,38 +16,28 @@ def get_stock_data(symbol):
     try:
         stock = yf.Ticker(symbol)
 
-        # Try fast_info first
-        info = stock.fast_info or {}
+        info = stock.fast_info or stock.info
 
-        # Fallback to info dict if fast_info is empty
-        if not info.get("lastPrice"):
-            info = stock.info
+        if not info or not info.get("lastPrice", 0):
+            raise ValueError("Invalid or unavailable symbol.")
 
-        # If still no data, raise an error
-        if not info or not info.get("regularMarketPrice"):
-            raise Exception("Data not available. Try again later.")
+        price = info.get("lastPrice") or info.get("regularMarketPrice")
 
         data = {
             "symbol": symbol,
-            "price": info.get("lastPrice") or info.get("regularMarketPrice"),
+            "price": price,
             "open": info.get("open"),
             "high": info.get("dayHigh"),
             "low": info.get("dayLow"),
             "previous_close": info.get("previousClose"),
-            "change": round(
-                (info.get("lastPrice") or info.get("regularMarketPrice", 0)) - info.get("previousClose", 0), 2
-            ),
-            "change_percent": f"{round(((info.get('lastPrice', 0) - info.get('previousClose', 0)) / info.get('previousClose', 1)) * 100, 2)}%",
+            "change": round(price - info.get("previousClose", 0), 2),
+            "change_percent": f"{round(((price - info.get('previousClose', 1)) / info.get('previousClose', 1)) * 100, 2)}%",
             "volume": info.get("volume"),
             "latest_trading_day": datetime.now().strftime("%d/%m/%Y, %I:%M:%S %p")
         }
-        return jsonify(data)
 
+        return jsonify(data)
+    
     except Exception as e:
         print("[ERROR]", str(e))
-        return jsonify({"error": str(e)}), 500
-
-# ✅ Required for Render deployment
-if __name__ == '__main__':
-    port = int(os.environ.get("PORT", 5000))
-    app.run(debug=True, host='0.0.0.0', port=port)
+        return jsonify({"error": "Failed to fetch data. Please check the symbol or try again later."}), 500
