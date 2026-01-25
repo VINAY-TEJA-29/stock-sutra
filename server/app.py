@@ -22,11 +22,10 @@ def get_stock_data(symbol):
     try:
         stock = yf.Ticker(symbol)
 
-        # --- Fetch data ---
         fast = stock.fast_info
         info = stock.info
 
-        # --- PRICE (reliable fallback chain) ---
+        # ---------- PRICE ----------
         price = (
             fast.get("last_price")
             or info.get("regularMarketPrice")
@@ -35,32 +34,47 @@ def get_stock_data(symbol):
             or 0
         )
 
-        # --- PREVIOUS CLOSE ---
+        if price == 0:
+            raise ValueError("Price unavailable")
+
+        # ---------- PREVIOUS CLOSE ----------
         prev_close = (
             info.get("previousClose")
             or fast.get("previous_close")
             or price
         )
 
-        # --- VOLUME ---
+        # ---------- VOLUME ----------
         volume = (
             fast.get("last_volume")
             or info.get("volume")
             or 0
         )
 
-        # --- MARKET TIME (last traded candle) ---
+        # ---------- MARKET TIME (SAFE FIX) ----------
         hist = stock.history(period="1d", interval="1m")
 
         if not hist.empty:
-            market_time = hist.index[-1].tz_convert(IST)
+            last_time = hist.index[-1]
+
+            # 🔧 FIX: handle timezone safely
+            if last_time.tzinfo is None:
+                last_time = pytz.utc.localize(last_time)
+
+            market_time = last_time.astimezone(IST)
             market_time_str = market_time.strftime("%d %b %Y, %I:%M %p")
-            market_status = "OPEN" if market_time.hour < 15 or (market_time.hour == 15 and market_time.minute <= 30) else "CLOSED"
+
+            market_status = (
+                "OPEN"
+                if market_time.hour < 15 or
+                   (market_time.hour == 15 and market_time.minute <= 30)
+                else "CLOSED"
+            )
         else:
             market_time_str = "Market Closed"
             market_status = "CLOSED"
 
-        # --- FINAL RESPONSE ---
+        # ---------- RESPONSE ----------
         data = {
             "symbol": symbol.upper(),
             "price": round(price, 2),
@@ -69,7 +83,7 @@ def get_stock_data(symbol):
             "low": round(info.get("dayLow") or fast.get("day_low", 0), 2),
             "previous_close": round(prev_close, 2),
             "change": round(price - prev_close, 2),
-            "change_percent": f"{round(((price - prev_close) / prev_close) * 100, 2)}%" if prev_close else "0%",
+            "change_percent": f"{round(((price - prev_close) / prev_close) * 100, 2)}%",
             "volume": int(volume),
             "latest_trading_day": market_time_str,
             "market_status": market_status
@@ -79,7 +93,7 @@ def get_stock_data(symbol):
 
     except Exception as e:
         print("[ERROR]", e)
-        return jsonify({"error": "Failed to fetch stock data"}), 500
+        return jsonify({"error": "Could not fetch stock data"}), 500
 
 
 # Render PORT binding
