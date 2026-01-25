@@ -2,7 +2,7 @@ import os
 from flask import Flask, jsonify, send_from_directory
 from flask_cors import CORS
 import yfinance as yf
-from datetime import datetime
+from datetime import datetime, time
 import pytz
 
 app = Flask(__name__, static_folder="../client/build", static_url_path="/")
@@ -20,8 +20,19 @@ def get_stock_data(symbol):
     try:
         stock = yf.Ticker(symbol)
 
-        # ✅ MOST RELIABLE SOURCE
-        hist = stock.history(period="1d")
+        # ----- MARKET TIME CHECK -----
+        now_ist = datetime.now(IST).time()
+        market_open = time(9, 15)
+        market_close = time(15, 30)
+
+        if market_open <= now_ist <= market_close:
+            # 🟢 Market OPEN → intraday data
+            hist = stock.history(period="1d", interval="1m")
+            intraday = True
+        else:
+            # 🔴 Market CLOSED → daily data
+            hist = stock.history(period="1d")
+            intraday = False
 
         if hist.empty:
             return jsonify({"error": "Invalid symbol"}), 400
@@ -34,11 +45,16 @@ def get_stock_data(symbol):
         low = float(last_row["Low"])
         volume = int(last_row["Volume"])
 
-        # --- TIME ---
+        # ----- TIME HANDLING -----
         last_time = hist.index[-1]
         if last_time.tzinfo is None:
             last_time = pytz.utc.localize(last_time)
         market_time = last_time.astimezone(IST)
+
+        if intraday:
+            trading_time = market_time.strftime("%d %b %Y, %I:%M %p")
+        else:
+            trading_time = market_time.strftime("%d %b %Y")
 
         data = {
             "symbol": symbol.upper(),
@@ -50,7 +66,7 @@ def get_stock_data(symbol):
             "change": round(price - open_price, 2),
             "change_percent": f"{round(((price - open_price) / open_price) * 100, 2)}%",
             "volume": volume,
-            "latest_trading_day": market_time.strftime("%d %b %Y, %I:%M %p")
+            "latest_trading_day": trading_time
         }
 
         return jsonify(data)
