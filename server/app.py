@@ -20,60 +20,44 @@ def get_stock_data(symbol):
     try:
         stock = yf.Ticker(symbol)
 
-        info = stock.info
-        fast = stock.fast_info
+        # ✅ MOST RELIABLE SOURCE
+        hist = stock.history(period="1d")
 
-        # ✅ CORRECT KEYS
-        price = (
-            fast.get("lastPrice")
-            or info.get("regularMarketPrice")
-            or info.get("currentPrice")
-            or info.get("previousClose")
-            or 0
-        )
+        if hist.empty:
+            return jsonify({"error": "Invalid symbol"}), 400
 
-        prev_close = (
-            fast.get("previousClose")
-            or info.get("previousClose")
-            or price
-        )
+        last_row = hist.iloc[-1]
 
-        volume = (
-            fast.get("lastVolume")
-            or info.get("volume")
-            or 0
-        )
+        price = float(last_row["Close"])
+        open_price = float(last_row["Open"])
+        high = float(last_row["High"])
+        low = float(last_row["Low"])
+        volume = int(last_row["Volume"])
 
-        # ✅ SAFE MARKET TIME
-        hist = stock.history(period="1d", interval="1m")
-
-        if not hist.empty:
-            last_time = hist.index[-1]
-            if last_time.tzinfo is None:
-                last_time = pytz.utc.localize(last_time)
-            market_time = last_time.astimezone(IST)
-            market_time_str = market_time.strftime("%d %b %Y, %I:%M %p")
-        else:
-            market_time_str = "Market Closed"
+        # --- TIME ---
+        last_time = hist.index[-1]
+        if last_time.tzinfo is None:
+            last_time = pytz.utc.localize(last_time)
+        market_time = last_time.astimezone(IST)
 
         data = {
             "symbol": symbol.upper(),
             "price": round(price, 2),
-            "open": round(fast.get("open") or info.get("open", 0), 2),
-            "high": round(fast.get("dayHigh") or info.get("dayHigh", 0), 2),
-            "low": round(fast.get("dayLow") or info.get("dayLow", 0), 2),
-            "previous_close": round(prev_close, 2),
-            "change": round(price - prev_close, 2),
-            "change_percent": f"{round(((price - prev_close) / prev_close) * 100, 2)}%" if prev_close else "0%",
-            "volume": int(volume),
-            "latest_trading_day": market_time_str
+            "open": round(open_price, 2),
+            "high": round(high, 2),
+            "low": round(low, 2),
+            "previous_close": round(open_price, 2),
+            "change": round(price - open_price, 2),
+            "change_percent": f"{round(((price - open_price) / open_price) * 100, 2)}%",
+            "volume": volume,
+            "latest_trading_day": market_time.strftime("%d %b %Y, %I:%M %p")
         }
 
         return jsonify(data)
 
     except Exception as e:
         print("[ERROR]", e)
-        return jsonify({"error": "Failed to fetch stock data"}), 500
+        return jsonify({"error": "Could not fetch stock data"}), 500
 
 
 if __name__ == "__main__":
