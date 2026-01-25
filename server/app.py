@@ -26,11 +26,11 @@ def get_stock_data(symbol):
 
         data = {
             "symbol": symbol,
-            "price": round(info.get("currentPrice", 0), 2)
-            "open": round(info.get("open", 0), 2)
-            "high": round(info.get("dayHigh", 0), 2)
-            "low": round(info.get("dayLow", 0), 2)
-            "previous_close": round(info.get("previousClose", 0), 2)
+            "price": round(info.get("currentPrice", 0), 2),
+            "open": round(info.get("open", 0), 2),
+            "high": round(info.get("dayHigh", 0), 2),
+            "low": round(info.get("dayLow", 0), 2),
+            "previous_close": round(info.get("previousClose", 0), 2),
             "change": round(price - info.get("previousClose", 0), 2),
             "change_percent": f"{round(((price - info.get('previousClose', 1)) / info.get('previousClose', 1)) * 100, 2)}%",
             "volume": info.get("volume"),
