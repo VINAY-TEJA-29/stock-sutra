@@ -1,63 +1,53 @@
 import os
-from flask import Flask, jsonify, send_from_directory
+from flask import Flask, jsonify
 from flask_cors import CORS
 import yfinance as yf
-from datetime import datetime, time
+from datetime import datetime
 import pytz
 
-app = Flask(__name__, static_folder="../client/build", static_url_path="/")
+app = Flask(__name__)
 CORS(app)
 
 IST = pytz.timezone("Asia/Kolkata")
 
-@app.route("/")
-def serve():
-    return send_from_directory(app.static_folder, "index.html")
-
-
 @app.route("/stock/<symbol>")
 def get_stock_data(symbol):
     try:
+        symbol = symbol.upper().strip()
         stock = yf.Ticker(symbol)
 
-        # ----- MARKET TIME CHECK -----
-        now_ist = datetime.now(IST).time()
-        market_open = time(9, 15)
-        market_close = time(15, 30)
+        # 🔒 MOST STABLE yfinance call
+        hist = stock.history(
+            period="1d",
+            interval="1d",
+            auto_adjust=False,
+            threads=False
+        )
 
-        if market_open <= now_ist <= market_close:
-            # 🟢 Market OPEN → intraday data
-            hist = stock.history(period="1d", interval="1m")
-            intraday = True
-        else:
-            # 🔴 Market CLOSED → daily data
-            hist = stock.history(period="1d")
-            intraday = False
+        if hist is None or hist.empty:
+            return jsonify({"error": "No data returned from Yahoo Finance"}), 400
 
-        if hist.empty:
-            return jsonify({"error": "Invalid symbol"}), 400
+        # Ensure required columns exist
+        required_cols = {"Open", "High", "Low", "Close", "Volume"}
+        if not required_cols.issubset(hist.columns):
+            return jsonify({"error": "Incomplete market data"}), 400
 
-        last_row = hist.iloc[-1]
+        row = hist.iloc[-1]
 
-        price = float(last_row["Close"])
-        open_price = float(last_row["Open"])
-        high = float(last_row["High"])
-        low = float(last_row["Low"])
-        volume = int(last_row["Volume"])
+        price = float(row["Close"])
+        open_price = float(row["Open"])
+        high = float(row["High"])
+        low = float(row["Low"])
+        volume = int(row["Volume"])
 
-        # ----- TIME HANDLING -----
-        last_time = hist.index[-1]
-        if last_time.tzinfo is None:
-            last_time = pytz.utc.localize(last_time)
-        market_time = last_time.astimezone(IST)
-
-        if intraday:
-            trading_time = market_time.strftime("%d %b %Y, %I:%M %p")
-        else:
-            trading_time = market_time.strftime("%d %b %Y")
+        # Time handling (daily candle → date only)
+        trade_date = hist.index[-1]
+        if trade_date.tzinfo is None:
+            trade_date = pytz.utc.localize(trade_date)
+        trade_date = trade_date.astimezone(IST)
 
         data = {
-            "symbol": symbol.upper(),
+            "symbol": symbol,
             "price": round(price, 2),
             "open": round(open_price, 2),
             "high": round(high, 2),
@@ -66,13 +56,14 @@ def get_stock_data(symbol):
             "change": round(price - open_price, 2),
             "change_percent": f"{round(((price - open_price) / open_price) * 100, 2)}%",
             "volume": volume,
-            "latest_trading_day": trading_time
+            "latest_trading_day": trade_date.strftime("%d %b %Y")
         }
 
         return jsonify(data)
 
     except Exception as e:
-        print("[ERROR]", e)
+        # 🔍 LOG THE REAL ERROR
+        print("YFINANCE ERROR:", str(e))
         return jsonify({"error": "Could not fetch stock data"}), 500
 
 
