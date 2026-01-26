@@ -8,9 +8,7 @@ import pytz
 app = Flask(__name__)
 CORS(app)
 
-# Read API key from Render Environment Variables
 API_KEY = os.environ.get("ALPHA_VANTAGE_API_KEY")
-
 IST = pytz.timezone("Asia/Kolkata")
 
 
@@ -20,7 +18,6 @@ def get_stock_data(symbol):
         if not API_KEY:
             return jsonify({"error": "API key not configured"}), 500
 
-        # Convert NSE symbol to BSE (Alpha Vantage works better with BSE)
         symbol = symbol.upper().replace(".NS", ".BSE")
 
         url = "https://www.alphavantage.co/query"
@@ -30,33 +27,36 @@ def get_stock_data(symbol):
             "apikey": API_KEY
         }
 
-        response = requests.get(url, params=params, timeout=10)
-        data = response.json()
+        res = requests.get(url, params=params, timeout=10)
+        data = res.json()
 
-        # Handle API errors / limits
+        # ---- ERROR HANDLING ----
+        if "Note" in data:
+            return jsonify({"error": "API limit exceeded. Please wait 1 minute."}), 429
+
+        if "Error Message" in data:
+            return jsonify({"error": "Invalid stock symbol"}), 400
+
         if "Time Series (Daily)" not in data:
-            return jsonify({"error": "Invalid symbol or API limit exceeded"}), 400
+            return jsonify({"error": "Data unavailable"}), 400
 
-        time_series = data["Time Series (Daily)"]
-        dates = list(time_series.keys())
+        series = data["Time Series (Daily)"]
+        dates = list(series.keys())
 
-        latest_day = dates[0]
-        prev_day = dates[1]
-
-        latest = time_series[latest_day]
-        previous = time_series[prev_day]
+        latest = series[dates[0]]
+        prev = series[dates[1]]
 
         price = float(latest["4. close"])
         open_price = float(latest["1. open"])
         high = float(latest["2. high"])
         low = float(latest["3. low"])
-        prev_close = float(previous["4. close"])
+        prev_close = float(prev["4. close"])
         volume = int(latest["5. volume"])
 
-        trade_date = datetime.strptime(latest_day, "%Y-%m-%d")
+        trade_date = datetime.strptime(dates[0], "%Y-%m-%d")
         trade_date = IST.localize(trade_date)
 
-        result = {
+        return jsonify({
             "symbol": symbol.replace(".BSE", ".NS"),
             "price": round(price, 2),
             "open": round(open_price, 2),
@@ -67,9 +67,7 @@ def get_stock_data(symbol):
             "change_percent": f"{round(((price - prev_close) / prev_close) * 100, 2)}%",
             "volume": volume,
             "latest_trading_day": trade_date.strftime("%d %b %Y")
-        }
-
-        return jsonify(result)
+        })
 
     except Exception as e:
         print("ERROR:", e)
