@@ -10,6 +10,7 @@ import {
   CircularProgress,
   Alert,
 } from "@mui/material";
+
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -19,9 +20,11 @@ import {
   Tooltip,
   Legend,
 } from "chart.js";
+
 import { Line } from "react-chartjs-2";
 import "./App.css";
 
+/* ================== CHART REGISTER ================== */
 ChartJS.register(
   CategoryScale,
   LinearScale,
@@ -34,82 +37,93 @@ ChartJS.register(
 function App() {
   const [symbol, setSymbol] = useState("");
   const [data, setData] = useState(null);
+  const [chartData, setChartData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [marketStatus, setMarketStatus] = useState("Closed");
 
-  // 🟢 MARKET OPEN / CLOSE LOGIC (IST – NSE)
+  /* ================== MARKET STATUS (NSE) ================== */
   const getMarketStatus = () => {
     const now = new Date();
-    const istTime = new Date(
+    const ist = new Date(
       now.toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
     );
 
-    const day = istTime.getDay();
-    const minutes = istTime.getHours() * 60 + istTime.getMinutes();
+    const day = ist.getDay(); // 0 Sun, 6 Sat
+    const minutes = ist.getHours() * 60 + ist.getMinutes();
 
-    const marketOpen = 9 * 60 + 15;
-    const marketClose = 15 * 60 + 30;
+    const open = 9 * 60 + 15;
+    const close = 15 * 60 + 30;
 
     if (day === 0 || day === 6) return "Closed";
-
-    return minutes >= marketOpen && minutes <= marketClose
-      ? "Open"
-      : "Closed";
+    return minutes >= open && minutes <= close ? "Open" : "Closed";
   };
 
   useEffect(() => {
     setMarketStatus(getMarketStatus());
-    const interval = setInterval(() => {
+    const timer = setInterval(() => {
       setMarketStatus(getMarketStatus());
     }, 60000);
-    return () => clearInterval(interval);
+    return () => clearInterval(timer);
   }, []);
 
-  // Fetch stock data
+  /* ================== FETCH STOCK SUMMARY ================== */
   const fetchStock = async () => {
     if (!symbol.trim()) {
       setError("Please enter a stock symbol");
       return;
     }
 
-    if (loading) return;
-
     setLoading(true);
     setError("");
     setData(null);
+    setChartData(null);
 
     try {
-      const response = await axios.get(
+      const res = await axios.get(
         `https://stock-sutra.onrender.com/stock/${symbol.trim()}`
       );
-      setData(response.data);
+
+      setData(res.data);
+      fetchChart(symbol.trim());
     } catch (err) {
-      if (err.response?.data?.error) {
-        setError(err.response.data.error);
-      } else {
-        setError("Could not fetch stock data");
-      }
+      setError(
+        err.response?.data?.error || "Could not fetch stock data"
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  // 📊 PRICE CHART DATA
-  const chartData =
-    data && {
-      labels: ["Open", "Low", "High", "Close"],
-      datasets: [
-        {
-          label: data.symbol,
-          data: [data.open, data.low, data.high, data.price],
-          borderColor: "#1976d2",
-          backgroundColor: "rgba(25,118,210,0.2)",
-          tension: 0.4,
-        },
-      ],
-    };
+  /* ================== FETCH INTRADAY CHART ================== */
+  const fetchChart = async (sym) => {
+    try {
+      const res = await axios.get(
+        `https://stock-sutra.onrender.com/stock/${sym}/chart`
+      );
 
+      const labels = res.data.data.map((p) => p.time);
+      const prices = res.data.data.map((p) => p.price);
+
+      setChartData({
+        labels,
+        datasets: [
+          {
+            label: `${sym} Intraday`,
+            data: prices,
+            borderColor: "#1976d2",
+            backgroundColor: "rgba(25,118,210,0.15)",
+            tension: 0.35,
+            pointRadius: 0,
+          },
+        ],
+      });
+    } catch (e) {
+      console.error("Chart fetch failed");
+    }
+  };
+
+  /* ================== UI ================== */
   return (
     <Container maxWidth="sm" style={{ textAlign: "center", paddingTop: 30 }}>
       <Typography variant="h3" gutterBottom>
@@ -122,7 +136,6 @@ function App() {
 
       {/* MARKET STATUS */}
       <Typography
-        variant="subtitle1"
         style={{
           color: marketStatus === "Open" ? "green" : "red",
           fontWeight: "bold",
@@ -132,20 +145,21 @@ function App() {
         Market Status: {marketStatus}
       </Typography>
 
-      {/* QUICK SYMBOLS */}
+      {/* QUICK BUTTONS */}
       <Box mb={2}>
         {["RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS"].map((s) => (
           <Button
             key={s}
             variant="outlined"
             onClick={() => setSymbol(s)}
-            style={{ margin: "5px" }}
+            style={{ margin: 5 }}
           >
             {s}
           </Button>
         ))}
       </Box>
 
+      {/* INPUT */}
       <TextField
         label="Stock Symbol"
         variant="outlined"
@@ -157,7 +171,6 @@ function App() {
 
       <Button
         variant="contained"
-        color="primary"
         fullWidth
         onClick={fetchStock}
         disabled={loading}
@@ -171,31 +184,40 @@ function App() {
 
       {/* STOCK DETAILS */}
       {data && (
-        <>
-          <Paper style={{ padding: 16, marginTop: 16 }}>
-            <Typography variant="h6">
-              Stock Details for {data.symbol}
-            </Typography>
-            <Typography>Price: ₹{data.price}</Typography>
-            <Typography>Open: ₹{data.open}</Typography>
-            <Typography>High: ₹{data.high}</Typography>
-            <Typography>Low: ₹{data.low}</Typography>
-            <Typography>Previous Close: ₹{data.previous_close}</Typography>
-            <Typography>
-              Change: {data.change} ({data.change_percent})
-            </Typography>
-            <Typography>Volume: {data.volume}</Typography>
-            <Typography>
-              Latest Trading Day: {data.latest_trading_day}
-            </Typography>
-          </Paper>
+        <Paper style={{ padding: 16, marginTop: 16 }}>
+          <Typography variant="h6">
+            Stock Details for {data.symbol}
+          </Typography>
+          <Typography>Price: ₹{data.price}</Typography>
+          <Typography>Open: ₹{data.open}</Typography>
+          <Typography>High: ₹{data.high}</Typography>
+          <Typography>Low: ₹{data.low}</Typography>
+          <Typography>Previous Close: ₹{data.previous_close}</Typography>
+          <Typography>
+            Change: {data.change} ({data.change_percent})
+          </Typography>
+          <Typography>Volume: {data.volume ?? "-"}</Typography>
+          <Typography>
+            Latest Trading Day: {data.latest_trading_day}
+          </Typography>
+        </Paper>
+      )}
 
-          {/* 📊 PRICE CHART */}
-          <Paper style={{ padding: 16, marginTop: 20 }}>
-            <Typography variant="h6">Price Chart</Typography>
-            <Line data={chartData} />
-          </Paper>
-        </>
+      {/* INTRADAY CHART */}
+      {chartData && (
+        <Paper style={{ padding: 16, marginTop: 20 }}>
+          <Typography variant="h6">Intraday Price Chart</Typography>
+          <Line
+            data={chartData}
+            options={{
+              responsive: true,
+              plugins: { legend: { display: true } },
+              scales: {
+                x: { ticks: { maxTicksLimit: 8 } },
+              },
+            }}
+          />
+        </Paper>
       )}
     </Container>
   );
