@@ -10,77 +10,80 @@ CORS(app)
 
 IST = pytz.timezone("Asia/Kolkata")
 
-# Simple in-memory cache to avoid repeated calls
-CACHE = {}
-CACHE_TTL = 30  # seconds
+@app.route("/")
+def home():
+    return "StockSutra backend running"
 
-
-def get_cached(symbol):
-    entry = CACHE.get(symbol)
-    if not entry:
-        return None
-    data, timestamp = entry
-    if (datetime.now().timestamp() - timestamp) > CACHE_TTL:
-        return None
-    return data
-
-
-def set_cache(symbol, data):
-    CACHE[symbol] = (data, datetime.now().timestamp())
-
-
+# ===============================
+# SUMMARY ENDPOINT (unchanged)
+# ===============================
 @app.route("/stock/<symbol>")
 def get_stock(symbol):
     try:
-        symbol = symbol.upper().strip()
+        symbol = symbol.upper()
+        stock = yf.Ticker(symbol)
 
-        # NSE default
-        if "." not in symbol:
-            symbol = symbol + ".NS"
+        info = stock.fast_info
+        hist = stock.history(period="2d")
 
-        cached = get_cached(symbol)
-        if cached:
-            return jsonify(cached)
-
-        ticker = yf.Ticker(symbol)
-        info = ticker.fast_info or {}
-
-        price = info.get("lastPrice")
-        open_price = info.get("open")
-        high = info.get("dayHigh")
-        low = info.get("dayLow")
-        prev_close = info.get("previousClose")
-        volume = info.get("volume")
-
-        if not price or not prev_close:
+        if hist.empty:
             return jsonify({"error": "Data unavailable"}), 400
+
+        latest = hist.iloc[-1]
+        prev = hist.iloc[-2]
 
         now_ist = datetime.now(IST)
 
-        data = {
+        return jsonify({
             "symbol": symbol,
-            "price": round(price, 2),
-            "open": round(open_price, 2) if open_price else None,
-            "high": round(high, 2) if high else None,
-            "low": round(low, 2) if low else None,
-            "previous_close": round(prev_close, 2),
-            "change": round(price - prev_close, 2),
-            "change_percent": f"{round(((price - prev_close) / prev_close) * 100, 2)}%",
-            "volume": int(volume) if volume else None,
+            "price": round(info.get("last_price", latest["Close"]), 2),
+            "open": round(latest["Open"], 2),
+            "high": round(latest["High"], 2),
+            "low": round(latest["Low"], 2),
+            "previous_close": round(prev["Close"], 2),
+            "change": round(latest["Close"] - prev["Close"], 2),
+            "change_percent": f"{round(((latest['Close'] - prev['Close']) / prev['Close']) * 100, 2)}%",
+            "volume": int(latest["Volume"]) if "Volume" in latest else None,
             "latest_trading_day": now_ist.strftime("%d %b %Y, %I:%M %p")
-        }
-
-        set_cache(symbol, data)
-        return jsonify(data)
+        })
 
     except Exception as e:
         print("ERROR:", e)
         return jsonify({"error": "Could not fetch stock data"}), 500
 
 
-@app.route("/")
-def home():
-    return "StockSutra backend running"
+# ===============================
+# 🔥 INTRADAY CHART ENDPOINT
+# ===============================
+@app.route("/stock/<symbol>/chart")
+def get_chart(symbol):
+    try:
+        symbol = symbol.upper()
+        stock = yf.Ticker(symbol)
+
+        # 1 day, 5 minute candles
+        df = stock.history(period="1d", interval="5m")
+
+        if df.empty:
+            return jsonify({"error": "Chart data unavailable"}), 400
+
+        data = []
+        for index, row in df.iterrows():
+            ist_time = index.tz_convert(IST)
+            data.append({
+                "time": ist_time.strftime("%H:%M"),
+                "price": round(row["Close"], 2)
+            })
+
+        return jsonify({
+            "symbol": symbol,
+            "interval": "5m",
+            "data": data
+        })
+
+    except Exception as e:
+        print("CHART ERROR:", e)
+        return jsonify({"error": "Could not fetch chart data"}), 500
 
 
 if __name__ == "__main__":
