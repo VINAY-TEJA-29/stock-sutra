@@ -30,9 +30,12 @@ def get_stock(symbol):
             return jsonify({"error": "Data unavailable"}), 400
 
         latest = hist.iloc[-1]
-        prev = hist.iloc[-2]
+        prev = hist.iloc[-2] if len(hist) >= 2 else latest
 
         now_ist = datetime.now(IST)
+
+        change = latest["Close"] - prev["Close"]
+        change_percent = (change / prev["Close"]) * 100 if prev["Close"] != 0 else 0
 
         return jsonify({
             "symbol": symbol,
@@ -41,8 +44,8 @@ def get_stock(symbol):
             "high": round(latest["High"], 2),
             "low": round(latest["Low"], 2),
             "previous_close": round(prev["Close"], 2),
-            "change": round(latest["Close"] - prev["Close"], 2),
-            "change_percent": f"{round(((latest['Close'] - prev['Close']) / prev['Close']) * 100, 2)}%",
+            "change": round(change, 2),
+            "change_percent": f"{round(change_percent, 2)}%",
             "volume": int(latest["Volume"]) if "Volume" in latest else None,
             "latest_trading_day": now_ist.strftime("%d %b %Y, %I:%M %p")
         })
