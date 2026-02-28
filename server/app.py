@@ -36,7 +36,7 @@ def get_stock(symbol):
 
         return jsonify({
             "symbol": symbol,
-            "price": round(info.get("last_price", latest["Close"]), 2),
+            "price": round(latest["Close"], 2),
             "open": round(latest["Open"], 2),
             "high": round(latest["High"], 2),
             "low": round(latest["Low"], 2),
