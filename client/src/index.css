@@ -1,3 +1,9 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
 body {
   margin: 0;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
@@ -5,8 +11,8 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #f5f6fa; /* Groww-like light grey background */
-  color: #44475b; /* Groww-like dark grey text */
+  background-color: #f5f6fa;
+  color: #44475b;
 }
 
 code {
@@ -14,17 +20,25 @@ code {
     monospace;
 }
 
-/* Custom scrollbar for a cleaner look */
+/* Custom scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: transparent; 
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cdd2d9; 
+  background: #cdd2d9;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #a9b0ba; 
+  background: #a9b0ba;
+}
+
+/* Dark mode scrollbar */
+.dark-mode ::-webkit-scrollbar-thumb {
+  background: #2d3848;
+}
+.dark-mode ::-webkit-scrollbar-thumb:hover {
+  background: #3d4d62;
 }
