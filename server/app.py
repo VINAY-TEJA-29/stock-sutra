@@ -68,7 +68,7 @@ def get_stock(symbol):
 
     except Exception as e:
         print(f"[ERROR] /stock/{symbol}: {e}")
-        return jsonify({"error": "Failed to fetch stock data. Please try again."}), 500
+        return jsonify({"error": f"Failed to fetch stock data: {str(e)}"}), 500
 
 
 # ============================================
@@ -101,7 +101,7 @@ def get_stock_info(symbol):
 
     except Exception as e:
         print(f"[ERROR] /stock/{symbol}/info: {e}")
-        return jsonify({"error": "Failed to fetch company info."}), 500
+        return jsonify({"error": f"Failed to fetch company info: {str(e)}"}), 500
 
 
 # ============================================
@@ -175,7 +175,7 @@ def get_chart(symbol):
 
     except Exception as e:
         print(f"[ERROR] /stock/{symbol}/chart: {e}")
-        return jsonify({"error": "Failed to fetch chart data. Please try again."}), 500
+        return jsonify({"error": f"Failed to fetch chart data: {str(e)}"}), 500
 
 
 # ============================================
