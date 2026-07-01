@@ -4,6 +4,16 @@ from flask_cors import CORS
 import yfinance as yf
 from datetime import datetime
 import pytz
+import requests
+
+# Create a custom session to bypass Yahoo Finance rate limiting / IP blocking on Render
+yf_session = requests.Session()
+yf_session.headers.update({
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': '*/*',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'Connection': 'keep-alive'
+})
 
 app = Flask(__name__)
 
@@ -34,7 +44,7 @@ def get_stock(symbol):
     try:
         symbol = symbol.upper().strip()
 
-        stock = yf.Ticker(symbol)
+        stock = yf.Ticker(symbol, session=yf_session)
         hist = stock.history(period="5d")
 
         if hist.empty:
@@ -78,7 +88,7 @@ def get_stock(symbol):
 def get_stock_info(symbol):
     try:
         symbol = symbol.upper().strip()
-        stock = yf.Ticker(symbol)
+        stock = yf.Ticker(symbol, session=yf_session)
         info = stock.info
 
         if not info or info.get("regularMarketPrice") is None:
@@ -131,7 +141,7 @@ def get_chart(symbol):
 
         interval = interval_map.get(period, "1d")
 
-        stock = yf.Ticker(symbol)
+        stock = yf.Ticker(symbol, session=yf_session)
         df = stock.history(period=period, interval=interval)
 
         if df.empty:
